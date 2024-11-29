@@ -1,4 +1,4 @@
-Grow Web App
+# Grow Web App
 Grow is a business growth platform that helps companies enhance their reach and performance through organic content. It offers tools and services designed for sustainable growth, ensuring a seamless and scalable experience.
 
 Features
