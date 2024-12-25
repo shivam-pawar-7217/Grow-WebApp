@@ -18,7 +18,7 @@ export default function Hero() {
           and achieve lasting success.
         </p>
         <div className="mt-10 flex justify-center gap-x-6">
-          <button className="group inline-flex items-center justify-center rounded-full bg-emerald-600 px-8 py-3 text-sm font-semibold text-white hover:bg-emerald-700 transition-colors">
+          <button className="group inline-flex items-center justify-center rounded-full bg-emerald-600 px-8 py-3 text-sm font-semibold text-white hover:bg-emerald-700 transition-colors" onClick={() => (window.location.href = "http://localhost:5000/")}>
             Get started
             <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
           </button>

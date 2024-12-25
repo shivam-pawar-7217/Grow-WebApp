@@ -3,19 +3,18 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const mongoose = require('mongoose');
 const cors = require('cors');
-const path = require('path');
 
 // Initialize express app
 const app = express();
 
-// Use CORS middleware
-app.use(cors());
+// Allow requests from the frontend
+app.use(cors({ origin: 'http://localhost:5174', credentials: true }));
 
 // Middleware to parse JSON bodies
 app.use(express.json());
 
 // MongoDB Atlas connection string
-const mongoDBConnectionString = "mongodb+srv://LIGHTNING:Shivam@cluster0.50u48.mongodb.net/growDB?retryWrites=true&w=majority";
+const mongoDBConnectionString = "mongodb+srv://grow-admin:Shivam%407217@cluster0.50u48.mongodb.net/growDB?retryWrites=true&w=majority";
 
 mongoose.connect(mongoDBConnectionString)
     .then(() => console.log("MongoDB connected"))
@@ -29,7 +28,7 @@ const userSchema = new mongoose.Schema({
 
 const User = mongoose.model('User', userSchema);
 
-// Serve the login HTML file on the root route
+// Serve the login page
 app.get('/', (req, res) => {
     res.send(`
     <!DOCTYPE html>
@@ -38,7 +37,7 @@ app.get('/', (req, res) => {
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Login | Mangools</title>
+        <title>Login | Grow</title>
         <style>
             body {
                 font-family: Arial, sans-serif;
@@ -68,12 +67,6 @@ app.get('/', (req, res) => {
                 color: #f57d1d;
             }
 
-            .tagline {
-                font-size: 1.2rem;
-                margin-bottom: 1.5rem;
-                color: #333;
-            }
-
             .input-group {
                 margin-bottom: 1.5rem;
                 text-align: left;
@@ -101,7 +94,7 @@ app.get('/', (req, res) => {
                 box-shadow: 0 0 5px rgba(245, 125, 29, 0.4);
             }
 
-            .login-btn {
+            .login-btn, .register-btn {
                 background-color: #28a745;
                 color: white;
                 border: none;
@@ -114,40 +107,25 @@ app.get('/', (req, res) => {
                 transition: background-color 0.3s ease;
             }
 
-            .login-btn:hover {
+            .login-btn:hover, .register-btn:hover {
                 background-color: #218838;
             }
 
-            .links {
+            .error-message {
+                color: red;
+                font-size: 0.9rem;
+                margin-top: 1rem;
+            }
+
+            .register-link {
                 margin-top: 1rem;
                 font-size: 0.9rem;
-                color: #555;
+                color: #007bff;
+                cursor: pointer;
             }
 
-            .links a {
-                color: #f57d1d;
-                text-decoration: none;
-                margin: 0 0.5rem;
-            }
-
-            .links a:hover {
+            .register-link:hover {
                 text-decoration: underline;
-            }
-
-            .footer {
-                margin-top: 2rem;
-                display: flex;
-                justify-content: space-around;
-            }
-
-            .footer img {
-                width: 40px;
-                height: 40px;
-                transition: transform 0.2s;
-            }
-
-            .footer img:hover {
-                transform: scale(1.1);
             }
         </style>
     </head>
@@ -155,7 +133,6 @@ app.get('/', (req, res) => {
     <body>
         <div class="login-container">
             <div class="logo">grow</div>
-            <div class="tagline">Good to see you again</div>
             <form id="login-form">
                 <div class="input-group">
                     <label for="email">Your email</label>
@@ -167,16 +144,89 @@ app.get('/', (req, res) => {
                 </div>
                 <button type="submit" class="login-btn">Sign in</button>
             </form>
-            <div class="links">
-                <a href="#">Don't have an account?</a> | <a href="#">Forgot password?</a>
+
+            <div class="register-link" id="register-link">
+                New user? Register here
             </div>
-            <div class="footer">
-                <img src="https://images.freeimages.com/fic/images/icons/2437/pretty_social_media_icon_part_1/256/linkedin.png" alt="KWFinder">
-                <img src="https://img.favpng.com/17/20/25/made-in-kings-heath-instagram-facebook-female-photography-png-favpng-rPdTRBWci5EUw6JEQNWffZ8Ca_t.jpg" alt="SERPChecker">
-                <img src="https://img.freepik.com/premium-psd/black-brand-new-twitter-x-logo-icon-round_1129635-4.jpg" alt="SERPWatcher">
-              
-            </div>
+            
+            <div class="error-message" id="error-message"></div>
+
+            <form id="register-form" style="display: none;">
+                <div class="input-group">
+                    <label for="register-email">Your email</label>
+                    <input type="email" id="register-email" name="email" placeholder="e.g. elon@tesla.com" required>
+                </div>
+                <div class="input-group">
+                    <label for="register-password">Your password</label>
+                    <input type="password" id="register-password" name="password" placeholder="e.g. ilovegrow123" required>
+                </div>
+                <button type="submit" class="register-btn">Register</button>
+            </form>
         </div>
+
+        <script>
+            document.getElementById('login-form').addEventListener('submit', async function(e) {
+                e.preventDefault();
+
+                const email = document.getElementById('email').value;
+                const password = document.getElementById('password').value;
+
+                try {
+                    const response = await fetch('http://localhost:5000/login', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ email, password }),
+                    });
+
+                    const data = await response.json();
+
+                    if (response.ok) {
+                        // Redirect to the frontend home page
+                        window.location.href = 'http://localhost:5174/';
+                    } else {
+                        document.getElementById('error-message').textContent = data.message || 'Login failed';
+                    }
+                } catch (error) {
+                    document.getElementById('error-message').textContent = 'An error occurred. Please try again.';
+                }
+            });
+
+            document.getElementById('register-link').addEventListener('click', function() {
+                document.getElementById('login-form').style.display = 'none';
+                document.getElementById('register-form').style.display = 'block';
+                document.getElementById('register-link').style.display = 'none';
+            });
+
+            document.getElementById('register-form').addEventListener('submit', async function(e) {
+                e.preventDefault();
+
+                const email = document.getElementById('register-email').value;
+                const password = document.getElementById('register-password').value;
+
+                try {
+                    const response = await fetch('http://localhost:5000/register', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ email, password }),
+                    });
+
+                    const data = await response.json();
+
+                    if (response.ok) {
+                        // Redirect to login page after successful registration
+                        window.location.href = '/';
+                    } else {
+                        document.getElementById('error-message').textContent = data.message || 'Registration failed';
+                    }
+                } catch (error) {
+                    document.getElementById('error-message').textContent = 'An error occurred. Please try again.';
+                }
+            });
+        </script>
     </body>
 
     </html>
@@ -204,6 +254,27 @@ app.post('/login', async(req, res) => {
             message: 'Login successful',
             token,
         });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+// POST route to handle registration
+app.post('/register', async(req, res) => {
+    const { email, password } = req.body;
+
+    try {
+        const userExists = await User.findOne({ email });
+        if (userExists) {
+            return res.status(400).json({ message: 'Email already in use' });
+        }
+
+        const hashedPassword = await bcrypt.hash(password, 10);
+        const newUser = new User({ email, password: hashedPassword });
+        await newUser.save();
+
+        res.status(201).json({ message: 'Registration successful' });
     } catch (err) {
         console.error(err);
         res.status(500).json({ message: 'Server error' });
