@@ -1,0 +1,27 @@
+{
+    "compilerOptions": {
+        
+      "target": "ESNext",
+      "lib": ["ES2020","ESNext", "DOM", "DOM.Iterable"],
+      "module": "ESNext",
+      "skipLibCheck": true,
+      "baseUrl": ".",
+      "paths": {
+        "@/*": ["./src/*"]
+      },
+      "moduleResolution": "bundler",
+      "allowImportingTsExtensions": true,
+      "resolveJsonModule": true,
+      "isolatedModules": true,
+      "noEmit": true,
+      "allowJs": true,
+      "jsx": "react-jsx", // Ensure this is set
+      "strict": true,
+      "noUnusedLocals": true,
+      "noUnusedParameters": true,
+      "noFallthroughCasesInSwitch": true
+    },
+    "include": ["src"],
+    "references": [{"path": }]
+  }
+  

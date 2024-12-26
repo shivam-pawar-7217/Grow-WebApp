@@ -8,7 +8,7 @@ const cors = require('cors');
 const app = express();
 
 // Allow requests from the frontend
-app.use(cors({ origin: 'http://localhost:5174', credentials: true }));
+app.use(cors({ origin: 'http://localhost:5173', credentials: true }));
 
 // Middleware to parse JSON bodies
 app.use(express.json());
@@ -39,6 +39,17 @@ app.get('/', (req, res) => {
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Login | Grow</title>
         <style>
+            @keyframes fadeIn {
+                from { opacity: 0; transform: translateY(-20px); }
+                to { opacity: 1; transform: translateY(0); }
+            }
+
+            @keyframes pulse {
+                0% { transform: scale(1); }
+                50% { transform: scale(1.05); }
+                100% { transform: scale(1); }
+            }
+
             body {
                 font-family: Arial, sans-serif;
                 background: linear-gradient(135deg, #fff6e5, #ffe8e8);
@@ -58,6 +69,7 @@ app.get('/', (req, res) => {
                 text-align: center;
                 max-width: 400px;
                 width: 100%;
+                animation: fadeIn 0.6s ease-out;
             }
 
             .logo {
@@ -65,6 +77,7 @@ app.get('/', (req, res) => {
                 font-weight: bold;
                 font-size: 1.5rem;
                 color: #f57d1d;
+                animation: pulse 2s infinite;
             }
 
             .input-group {
@@ -92,6 +105,7 @@ app.get('/', (req, res) => {
             .input-group input:focus {
                 border-color: #f57d1d;
                 box-shadow: 0 0 5px rgba(245, 125, 29, 0.4);
+                transform: scale(1.02);
             }
 
             .login-btn, .register-btn {
@@ -104,17 +118,20 @@ app.get('/', (req, res) => {
                 cursor: pointer;
                 width: 100%;
                 margin-top: 0.5rem;
-                transition: background-color 0.3s ease;
+                transition: all 0.3s ease;
             }
 
             .login-btn:hover, .register-btn:hover {
                 background-color: #218838;
+                transform: translateY(-2px);
+                box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
             }
 
             .error-message {
                 color: red;
                 font-size: 0.9rem;
                 margin-top: 1rem;
+                animation: fadeIn 0.3s ease-out;
             }
 
             .register-link {
@@ -122,10 +139,27 @@ app.get('/', (req, res) => {
                 font-size: 0.9rem;
                 color: #007bff;
                 cursor: pointer;
+                transition: color 0.3s ease;
             }
 
             .register-link:hover {
+                color: #0056b3;
                 text-decoration: underline;
+            }
+
+            @keyframes spin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+            }
+
+            .loading {
+                display: inline-block;
+                width: 20px;
+                height: 20px;
+                border: 2px solid #ffffff;
+                border-radius: 50%;
+                border-top-color: transparent;
+                animation: spin 0.8s linear infinite;
             }
         </style>
     </head>
@@ -165,8 +199,19 @@ app.get('/', (req, res) => {
         </div>
 
         <script>
+            function showLoading(button) {
+                const originalText = button.textContent;
+                button.disabled = true;
+                button.innerHTML = '<span class="loading"></span>';
+                return () => {
+                    button.disabled = false;
+                    button.textContent = originalText;
+                };
+            }
+
             document.getElementById('login-form').addEventListener('submit', async function(e) {
                 e.preventDefault();
+                const resetLoading = showLoading(this.querySelector('button[type="submit"]'));
 
                 const email = document.getElementById('email').value;
                 const password = document.getElementById('password').value;
@@ -183,13 +228,17 @@ app.get('/', (req, res) => {
                     const data = await response.json();
 
                     if (response.ok) {
-                        // Redirect to the frontend home page
-                        window.location.href = 'http://localhost:5174/';
+                        // Store the token in localStorage
+                        localStorage.setItem('token', data.token);
+                        // Redirect to the dashboard page
+                        window.location.href = 'http://localhost:5173/dashboard';
                     } else {
                         document.getElementById('error-message').textContent = data.message || 'Login failed';
                     }
                 } catch (error) {
                     document.getElementById('error-message').textContent = 'An error occurred. Please try again.';
+                } finally {
+                    resetLoading();
                 }
             });
 
@@ -201,6 +250,7 @@ app.get('/', (req, res) => {
 
             document.getElementById('register-form').addEventListener('submit', async function(e) {
                 e.preventDefault();
+                const resetLoading = showLoading(this.querySelector('button[type="submit"]'));
 
                 const email = document.getElementById('register-email').value;
                 const password = document.getElementById('register-password').value;
@@ -224,6 +274,8 @@ app.get('/', (req, res) => {
                     }
                 } catch (error) {
                     document.getElementById('error-message').textContent = 'An error occurred. Please try again.';
+                } finally {
+                    resetLoading();
                 }
             });
         </script>
@@ -248,14 +300,51 @@ app.post('/login', async(req, res) => {
             return res.status(400).json({ message: 'Invalid email or password' });
         }
 
-        const token = jwt.sign({ userId: user._id }, 'your_jwt_secret', { expiresIn: '1h' });
+        const token = jwt.sign({
+                userId: user._id,
+                email: user.email
+            },
+            'your_jwt_secret', { expiresIn: '1h' }
+        );
 
         res.status(200).json({
             message: 'Login successful',
             token,
+            user: {
+                email: user.email,
+                id: user._id
+            }
         });
     } catch (err) {
         console.error(err);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+// Add authentication middleware
+const authenticateToken = (req, res, next) => {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+
+    if (!token) {
+        return res.status(401).json({ message: 'Access denied' });
+    }
+
+    jwt.verify(token, 'your_jwt_secret', (err, user) => {
+        if (err) {
+            return res.status(403).json({ message: 'Invalid token' });
+        }
+        req.user = user;
+        next();
+    });
+};
+
+// Protected route example
+app.get('/user/profile', authenticateToken, async(req, res) => {
+    try {
+        const user = await User.findById(req.user.userId).select('-password');
+        res.json(user);
+    } catch (err) {
         res.status(500).json({ message: 'Server error' });
     }
 });
@@ -285,3 +374,5 @@ app.post('/register', async(req, res) => {
 app.listen(5000, () => {
     console.log('Server running on http://localhost:5000');
 });
+
+console.log('Server updated with animations');
